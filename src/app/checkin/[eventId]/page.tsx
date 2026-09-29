@@ -31,7 +31,7 @@ export default async function CheckinPage({
 
   const { data: recent } = await supabase()
     .from('checkins')
-    .select('checked_in_at, profiles(full_name)')
+    .select('checked_in_at, profiles!user_id(full_name)')
     .eq('event_id', event.id)
     .order('checked_in_at', { ascending: false })
     .limit(15);
