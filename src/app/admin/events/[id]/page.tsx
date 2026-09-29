@@ -21,10 +21,10 @@ export const dynamic = 'force-dynamic';
 
 type RegRow = {
   id: string;
+  user_id: string;
   status: string;
   created_at: string;
   profiles: Pick<Profile, 'full_name' | 'email'> | null;
-  checkins: { checked_in_at: string }[] | null;
 };
 
 export default async function ManageEventPage({
@@ -54,12 +54,12 @@ export default async function ManageEventPage({
     { data: registrations },
     { data: announcements },
     { data: roles },
-    { count: checkedIn },
+    { data: checkinRows },
     { data: certificates },
   ] = await Promise.all([
     supabase()
       .from('registrations')
-      .select('id, status, created_at, profiles(full_name, email), checkins(checked_in_at)')
+      .select('id, user_id, status, created_at, profiles(full_name, email)')
       .eq('event_id', event.id)
       .order('created_at')
       .returns<RegRow[]>(),
@@ -75,10 +75,15 @@ export default async function ManageEventPage({
       .returns<(EventRole & { profiles: Pick<Profile, 'full_name' | 'email'> | null })[]>(),
     supabase()
       .from('checkins')
-      .select('user_id', { count: 'exact', head: true })
+      .select('user_id, checked_in_at')
       .eq('event_id', event.id),
     supabase().from('certificates').select('id').eq('event_id', event.id),
   ]);
+
+  const checkinByUser = new Map(
+    (checkinRows ?? []).map((c) => [c.user_id, c.checked_in_at]),
+  );
+  const checkedIn = checkinRows?.length ?? 0;
 
   const local = (iso: string | null) =>
     iso ? new Date(iso).toISOString().slice(0, 16) : '';
@@ -260,8 +265,8 @@ export default async function ManageEventPage({
                     </td>
                     <td className="py-1.5 pr-2">{r.status}</td>
                     <td className="py-1.5">
-                      {r.checkins && r.checkins.length > 0
-                        ? formatDateTime(r.checkins[0].checked_in_at)
+                      {checkinByUser.has(r.user_id)
+                        ? formatDateTime(checkinByUser.get(r.user_id)!)
                         : '—'}
                     </td>
                   </tr>
